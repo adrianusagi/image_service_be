@@ -1,0 +1,3 @@
+compile with
+
+docker compose run --rm --remove-orphans image-service-be mvn compile
