@@ -105,7 +105,15 @@ public class ImageController {
             String filename = StringUtils.stripFilenameExtension(oriFilename) + "-" + uniqueID + extension;
 
             Path path = Paths.get(uploadDir + filename);
-            Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
+            try {
+                Path resultPath = Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
+                log.info("File saved successfully at: {}", resultPath.toString());
+            } catch (IOException e) {
+                // This is where you handle the "Result" of a failure
+                log.info("Failed to save file: {}", e.getMessage());
+                // In a Spring Controller, you'd likely throw a custom exception or return a 500 Error
+            }
+            
 
             /** Store image information to database */
             Images image = new Images(null, oriFilename, filename, fileSize, now, null);
