@@ -106,8 +106,10 @@ public class ImageController {
 
             Path path = Paths.get(uploadDir + filename);
             try {
-                Path resultPath = Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
-                log.info("File saved successfully at: {}", resultPath.toString());
+                Long bytesRead = Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
+                if (bytesRead > 0) {
+                    log.info("Successfully saved " + bytesRead + " bytes to " + path.toAbsolutePath());
+                }
             } catch (IOException e) {
                 // This is where you handle the "Result" of a failure
                 log.info("Failed to save file: {}", e.getMessage());
