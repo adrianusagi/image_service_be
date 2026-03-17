@@ -18,7 +18,7 @@ services:
       - maven-repo:/root/.m2
     working_dir: /app
     ports:
-      - "8080:8080"
+      - "5105:5105"
       - "5005:5005" # For debugging
     command: mvn spring-boot:run 
     tty: true  # This keeps the terminal open so you can see logs
