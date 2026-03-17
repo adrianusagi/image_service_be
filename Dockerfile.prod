@@ -5,7 +5,11 @@ WORKDIR /app
 RUN mvn clean package -DskipTests
 
 # Stage 2: Runtime
-FROM eclipse-temurin-17-jre-alpine
+FROM eclipse-temurin:17-jre-alpine
+
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
+
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 # Create the upload directory inside the container
