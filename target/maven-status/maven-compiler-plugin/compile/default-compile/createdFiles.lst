@@ -1,8 +1,16 @@
+com/ituaku/image_service_api/repository/v1/ImagesRepository.class
+com/ituaku/image_service_api/repository/v1/ImageFormatsRepository.class
+com/ituaku/image_service_api/common/config/CorsConfig$1.class
+com/ituaku/image_service_api/controller/v1/ImageFormatConfig.class
+com/ituaku/image_service_api/common/config/CorsConfig.class
+com/ituaku/image_service_api/controller/v1/ImageProcessRequest.class
 com/ituaku/image_service_api/controller/v1/ImageFormatsResponse.class
 com/ituaku/image_service_api/controller/v1/ImageController.class
 com/ituaku/image_service_api/model/v1/ImageFormatsPublic.class
-com/ituaku/image_service_api/repository/v1/ImageFormatsRepository.class
 com/ituaku/image_service_api/exception/ResourceNotFoundException.class
+com/ituaku/image_service_api/common/dto/GenericResponse.class
 com/ituaku/image_service_api/model/v1/ImageFormats.class
+com/ituaku/image_service_api/ImageServiceApiApplication.class
 com/ituaku/image_service_api/common/exception/GlobalExceptionHandler.class
 com/ituaku/image_service_api/common/dto/ErrorResponse.class
+com/ituaku/image_service_api/model/v1/Images.class

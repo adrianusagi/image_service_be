@@ -1,29 +1,78 @@
 package com.ituaku.image_service_api.controller.v1;
 
-import com.ituaku.image_service_api.common.exception.GlobalExceptionHandler;
-import com.ituaku.image_service_api.model.v1.ImageFormats;
-import com.ituaku.image_service_api.model.v1.ImageFormatsPublic;
-import com.ituaku.image_service_api.repository.v1.ImageFormatsRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+// Multipart and Web imports
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
+import org.springframework.util.StringUtils;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.MediaType;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
+import com.sksamuel.scrimage.ImmutableImage;
+import com.sksamuel.scrimage.Position;
+import com.sksamuel.scrimage.webp.WebpWriter;
+import java.io.File;
+
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+
+// Your custom DTO and Entities
+import com.ituaku.image_service_api.model.v1.ImageFormats;
+import com.ituaku.image_service_api.model.v1.ImageFormatsPublic;
+import com.ituaku.image_service_api.model.v1.Images;
+import com.ituaku.image_service_api.common.dto.GenericResponse;
+import com.ituaku.image_service_api.common.exception.GlobalExceptionHandler;
+import com.ituaku.image_service_api.repository.v1.ImageFormatsRepository;
+import com.ituaku.image_service_api.repository.v1.ImagesRepository;
+
+// Utility and Logging
 import java.util.List;
+import java.time.LocalDateTime;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+
 
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/images")
 @RequiredArgsConstructor
+@Configuration
 public class ImageController {
 
+    @Value("${app.image.delete-after}")
+    private Integer deleteImgAfter;
+
+    @Value("${app.image.upload-directory}")
+    private String uploadDir;
+
     private final ImageFormatsRepository imageFormatsRepository;
+    private final ImagesRepository imagesRepository;
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     @GetMapping("/formats")
     public ResponseEntity<ImageFormatsResponse> getAllFormats() {
@@ -33,6 +82,177 @@ public class ImageController {
         
         return ResponseEntity.ok(new ImageFormatsResponse(200, "success", results));
     }
+
+    @PostMapping("/upload")
+    public ResponseEntity<GenericResponse<String>> uploadImage(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(new GenericResponse<>(400, "Please select a file", null));
+        }
+
+        try {
+            /** Log details for debugging */
+            log.info("Received file: {}, Size: {} bytes", file.getOriginalFilename(), file.getSize());
+            
+            String uniqueID = UUID.randomUUID().toString().replace("-", "");
+
+            /** Logic to save the file goes here */
+            /** Store image */
+            String oriFilename = file.getOriginalFilename();
+            Integer fileSize = (int) file.getSize();
+            LocalDateTime now = LocalDateTime.now();
+
+            String extension = oriFilename.substring(oriFilename.lastIndexOf("."));
+            String filename = StringUtils.stripFilenameExtension(oriFilename) + "-" + uniqueID + extension;
+
+            Path path = Paths.get(uploadDir + filename);
+            Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
+
+            /** Store image information to database */
+            Images image = new Images(null, oriFilename, filename, fileSize, now, null);
+            imagesRepository.save(image);
+
+            /** Delete the files after particular time */
+            scheduler.schedule(() -> {
+                log.info("One-time delayed task executed for file: {}", filename);
+                
+                try {
+                    // Attempt to delete the file
+                    Path filePath = Paths.get(uploadDir).resolve(filename);
+                    
+                    boolean deleted = Files.deleteIfExists(filePath);
+                    
+                    if (deleted) {
+                        log.info("File deleted successfully: {}", filename);
+
+                        LocalDateTime deletedAt = LocalDateTime.now();
+                        image.setDeletedAt(deletedAt);
+                        imagesRepository.save(image);
+                    } else {
+                        log.warn("File not found, could not delete: {}", filename);
+                    }
+                } catch (IOException e) {
+                    log.error("Failed to delete file: " + filename, e);
+                }
+            }, deleteImgAfter, TimeUnit.SECONDS);
+            
+            return ResponseEntity.ok(new GenericResponse<>(200, "Upload successful", filename));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(new GenericResponse<>(500, "Upload failed", null));
+        }
+    }
+
+    @PostMapping("/process")
+    public ResponseEntity<Resource> processImage(@RequestBody ImageProcessRequest request) {
+        try {
+            String filename = request.getFilename();
+
+            File inputFile = new File(uploadDir + filename);
+
+            // // Define the output path with .webp extension
+            String webpFilename = StringUtils.stripFilenameExtension(filename) + ".webp";
+            File outputFile = new File(uploadDir + webpFilename);
+
+            ImageFormats requestFormat = request.getFormat();
+            Integer formatId = requestFormat.getId();
+            String jsonConfig = requestFormat.getConfigs();
+
+            ObjectMapper mapper = new ObjectMapper();
+            try {
+                ImageFormatConfig config = mapper.readValue(jsonConfig, ImageFormatConfig.class);
+                
+                String proc_mode = config.getMode();
+                Integer width = config.getWidth();
+                Integer height = config.getHeight();
+                String position = config.getPosition();
+
+                if(proc_mode.contains("[resize]")){
+                    if(width != null && height == null){
+                        ImmutableImage.loader().fromFile(inputFile)
+                            .scaleToWidth(width)
+                            .output(WebpWriter.DEFAULT, outputFile);
+                        log.info("scaleToWidth {}", width);
+                    } else if(width == null && height != null){
+                        ImmutableImage.loader().fromFile(inputFile)
+                            .scaleToHeight(height)
+                            .output(WebpWriter.DEFAULT, outputFile);
+                            log.info("scaleToHeight {}", height);
+                    } else if(width != null && height != null){
+                        ImmutableImage.loader().fromFile(inputFile)
+                            .scaleTo(width, height)
+                            .output(WebpWriter.DEFAULT, outputFile);
+                            log.info("scaleTo {}x{}", width, height);
+                    }
+                } else if(proc_mode.contains("[crop]")){
+                    if(width != null && height != null){
+                        ImmutableImage img = ImmutableImage.loader().fromFile(inputFile);
+
+                        if(img.width < width || img.height < height){
+                            Float scaleW = (float) width / img.width; 
+                            Float scaleH = (float) height / img.height;
+                            
+                            if(scaleW > 1 && scaleH < 1){
+                                if(position.equals("topCenter")){
+                                    img.scaleToWidth(width).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
+                                    log.info("scaleToWidth {} then resizeTo {}x{} position: TopCenter", width, width, height);
+                                } else if(position.equals("bottomCenter")){
+                                    img.scaleToWidth(width).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
+                                    log.info("scaleToWidth {} then resizeTo {}x{} position: BottomCenter", width, width, height);
+                                } else {
+                                    img.scaleToWidth(width).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                                    log.info("scaleToWidth {} then resizeTo {}x{} position: center", width, width, height);
+                                }
+                            } else if(scaleW < 1 && scaleH > 1){
+                                if(position.equals("topCenter"))
+                                    img.scaleToHeight(height).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
+                                else if(position.equals("bottomCenter"))
+                                    img.scaleToHeight(height).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
+                                else img.scaleToHeight(height).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                            } else {
+                                img.resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                            }
+                        }
+                    }
+                } else {
+                    ImmutableImage.loader()
+                        .fromFile(inputFile)
+                        .output(WebpWriter.DEFAULT, outputFile);
+                }
+
+                Path filePath = Paths.get(uploadDir).resolve(webpFilename).normalize();
+                Resource resource = new UrlResource(filePath.toUri());
+
+                // Automatically determine if it's a webp, png, or jpg
+                String contentType = Files.probeContentType(filePath);
+                if (contentType == null) contentType = "image/webp"; // Fallback
+
+                /** Delete the files after particular time */
+                scheduler.schedule(() -> {
+                    try {
+                        // Attempt to delete the file
+                        Path delfilePath = Paths.get(uploadDir).resolve(webpFilename);
+                        
+                        boolean deleted = Files.deleteIfExists(delfilePath);
+                        
+                        if (deleted) {
+                            log.warn("File deleted successfully: {}", webpFilename);
+                        } else {
+                            log.warn("File not found, could not delete: {}", webpFilename);
+                        }
+                    } catch (IOException e) {
+                        log.error("Failed to delete file: " + webpFilename, e);
+                    }
+                }, deleteImgAfter, TimeUnit.SECONDS);
+
+                return ResponseEntity.ok().contentType(MediaType.parseMediaType(contentType))
+                    .header("Content-Disposition", "inline; filename=\"" + webpFilename + "\"")
+                    .body(resource);
+            } catch (JacksonException e) {
+                return ResponseEntity.internalServerError().build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 }
 
 @Data
@@ -41,4 +261,22 @@ class ImageFormatsResponse {
     private int status;
     private String message;
     private List<ImageFormatsPublic> data;
+}
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+class ImageProcessRequest {
+    private String filename;
+    private ImageFormats format;
+}
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+class ImageFormatConfig {
+    private String mode;
+    private Integer width;
+    private Integer height;
+    private String position;
 }

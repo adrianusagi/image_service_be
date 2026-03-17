@@ -6,7 +6,12 @@ services:
     container_name: "image-service-be"
     image: maven:3-eclipse-temurin-25
     volumes:
-      - .:/app
+      # Mount the project code (Read-Only is safer for the container)
+      - .:/app:rw
+      # Dedicated volume for uploads to ensure persistence 
+      # and clear separation from source code
+      - ./uploads:/app/uploads
+      # Maven cache
       - maven-repo:/root/.m2
     working_dir: /app
     ports:

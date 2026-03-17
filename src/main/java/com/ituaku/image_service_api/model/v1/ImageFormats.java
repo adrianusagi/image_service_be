@@ -12,6 +12,7 @@ public class ImageFormats {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private String name;
+    private String configs;
     @Column(name = "custom_order")
     private Integer customOrder;
 }
