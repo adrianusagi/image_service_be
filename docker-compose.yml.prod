@@ -11,8 +11,6 @@ services:
     container_name: "image-service-be"
     image: maven:3-eclipse-temurin-25
     volumes:
-      # Mount the project code (Read-Only is safer for the container)
-      - .:/app:rw
       # Dedicated volume for uploads to ensure persistence 
       # and clear separation from source code
       - /home/prodserver/image-service/image_service_be/data:/app/uploads
