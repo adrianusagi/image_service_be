@@ -1,0 +1,30 @@
+services:
+  image-service-be:
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.5'
+    env_file:
+      - .env
+    build: .
+    container_name: "image-service-be"
+    image: maven:3-eclipse-temurin-25
+    volumes:
+      # Mount the project code (Read-Only is safer for the container)
+      - .:/app:rw
+      # Dedicated volume for uploads to ensure persistence 
+      # and clear separation from source code
+      - ./home/production/imageservice/data:/app/uploads
+      # Maven cache
+      - maven-repo:/root/.m2
+    working_dir: /app
+    ports:
+      - "8080:8080"
+      - "5005:5005" # For debugging
+    command: mvn spring-boot:run 
+    tty: true  # This keeps the terminal open so you can see logs
+    stdin_open: true
+
+volumes:
+  maven-repo:
