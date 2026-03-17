@@ -13,5 +13,5 @@ USER spring:spring
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 # Create the upload directory inside the container
-RUN mkdir /app/uploads
+RUN mkdir -p /app/uploads && chmod 755 /app/uploads
 ENTRYPOINT ["java", "-Xmx512m", "-jar", "app.jar"]
