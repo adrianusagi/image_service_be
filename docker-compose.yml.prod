@@ -25,6 +25,14 @@ services:
     command: mvn spring-boot:run 
     tty: true  # This keeps the terminal open so you can see logs
     stdin_open: true
+    restart: unless-stopped
+    networks:
+      ituaku_net:
+        ipv4_address: 192.18.20.8.10
 
 volumes:
   maven-repo:
+
+networks:
+  ituaku_net:
+    external: true
