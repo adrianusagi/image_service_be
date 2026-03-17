@@ -28,7 +28,7 @@ services:
     restart: unless-stopped
     networks:
       ituaku_net:
-        ipv4_address: 192.18.20.8.10
+        ipv4_address: 192.18.20.10
 
 volumes:
   maven-repo:
