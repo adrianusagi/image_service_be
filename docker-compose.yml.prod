@@ -15,7 +15,7 @@ services:
       - .:/app:rw
       # Dedicated volume for uploads to ensure persistence 
       # and clear separation from source code
-      - ./home/production/imageservice/data:/app/uploads
+      - /home/prodserver/image-service/image_service_be/data:/app/uploads
       # Maven cache
       - maven-repo:/root/.m2
     working_dir: /app
