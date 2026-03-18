@@ -234,7 +234,7 @@ public class ImageController {
                             .output(WebpWriter.DEFAULT, outputFile);
                     }
                 } catch (IOException e) {
-                    log.error("Failed to write WebP output to disk at path: {}", outputFile.getAbsolutePath(), e);
+                    log.error("Failed to write WebP output to disk at path: {}, error: {}", outputFile.getAbsolutePath(), e);
                     // Return a 500 error or throw a custom exception here
                     return ResponseEntity.internalServerError().build();
                 }
