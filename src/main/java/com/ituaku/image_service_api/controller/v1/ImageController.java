@@ -115,7 +115,6 @@ public class ImageController {
                 log.info("Failed to save file: {}", e.getMessage());
                 // In a Spring Controller, you'd likely throw a custom exception or return a 500 Error
             }
-            
 
             /** Store image information to database */
             Images image = new Images(null, oriFilename, filename, fileSize, now, null);
@@ -257,6 +256,7 @@ public class ImageController {
                     .header("Content-Disposition", "inline; filename=\"" + webpFilename + "\"")
                     .body(resource);
             } catch (JacksonException e) {
+                log.info("failed to proceses image: {}", e);
                 return ResponseEntity.internalServerError().build();
             }
         } catch (Exception e) {
