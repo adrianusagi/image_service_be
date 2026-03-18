@@ -3,15 +3,15 @@ FROM maven:3.9-eclipse-temurin-17 AS build
 COPY . /app
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    libheif-examples \
-    imagemagick \
-    && rm -rf /var/lib/apt/lists/*
-
 RUN mvn clean package -DskipTests
 
 # Stage 2: Runtime
 FROM eclipse-temurin:17-jre-alpine
+
+RUN apk add --no-cache \
+    libheif \
+    libheif-tools \
+    imagemagick
 
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
