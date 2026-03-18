@@ -1,5 +1,7 @@
-# image_service_be
-Tool to manipulate image
+# Image Service (Backend)
+Online tools to optimize images for the website. Scale, resize, or crop images to a specific size, and convert images to WebP format.
+
+Online service available at: https://imageservice.ituaku.com
 
 # Stacks
 Front-end:
