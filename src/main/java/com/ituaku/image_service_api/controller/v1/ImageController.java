@@ -154,9 +154,9 @@ public class ImageController {
     public ResponseEntity<Resource> processImage(@RequestBody ImageProcessRequest request) {
         try {
             String filename = request.getFilename();
-
+            log.info("request filename: {}", filename);
             File inputFile = new File(uploadDir + filename);
-
+            log.info("request inputfile: {}", inputFile);
             // // Define the output path with .webp extension
             String webpFilename = StringUtils.stripFilenameExtension(filename) + ".webp";
             File outputFile = new File(uploadDir + webpFilename);
@@ -173,7 +173,7 @@ public class ImageController {
                 Integer width = config.getWidth();
                 Integer height = config.getHeight();
                 String position = config.getPosition();
-
+                log.info("format config: {}", config);
                 if(proc_mode.contains("[resize]")){
                     if(width != null && height == null){
                         ImmutableImage.loader().fromFile(inputFile)
@@ -199,7 +199,8 @@ public class ImageController {
                             Float scaleW = (float) width / img.width; 
                             Float scaleH = (float) height / img.height;
                             
-                            if(scaleW > 1 && scaleH < 1){
+                            if((scaleW > 1 && scaleH < 1) || scaleW > scaleH){
+                                log.info("scaleToWidth");
                                 if(position.equals("topCenter")){
                                     img.scaleToWidth(width).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
                                     log.info("scaleToWidth {} then resizeTo {}x{} position: TopCenter", width, width, height);
@@ -210,7 +211,8 @@ public class ImageController {
                                     img.scaleToWidth(width).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
                                     log.info("scaleToWidth {} then resizeTo {}x{} position: center", width, width, height);
                                 }
-                            } else if(scaleW < 1 && scaleH > 1){
+                            } else if((scaleW < 1 && scaleH > 1) || scaleW < scaleH){
+                                log.info("scaleToHeight");
                                 if(position.equals("topCenter"))
                                     img.scaleToHeight(height).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
                                 else if(position.equals("bottomCenter"))
@@ -260,6 +262,7 @@ public class ImageController {
                 return ResponseEntity.internalServerError().build();
             }
         } catch (Exception e) {
+            log.info("failed to proceses image: {}", e);
             return ResponseEntity.internalServerError().build();
         }
     }
