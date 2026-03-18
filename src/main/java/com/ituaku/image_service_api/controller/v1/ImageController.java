@@ -193,13 +193,13 @@ public class ImageController {
                     if(proc_mode.contains("[resize]")){
                         log.info("resize mode");
                         if(width != null && height == null){
-                            img.scaleToWidth(width);
+                            img = img.scaleToWidth(width);
                             log.info("scaleToWidth {}", width);
                         } else if(width == null && height != null){
-                            img.scaleToHeight(height);
+                            img = img.scaleToHeight(height);
                             log.info("scaleToHeight {}", height);
                         } else if(width != null && height != null){
-                            img.scaleTo(width, height);
+                            img = img.scaleTo(width, height);
                             log.info("scaleTo {}x{}", width, height);
                         }
                     } else if(proc_mode.contains("[crop]")){
@@ -212,27 +212,27 @@ public class ImageController {
                             if((ratioSrc < 1 && ratioTgt > 1) || ratioSrc < ratioTgt){
                                 log.info("scaleToWidth");
                                 if(position.equals("topCenter")){
-                                    img.scaleToWidth(width).resizeTo(width, height, Position.TopCenter);
+                                    img = img.scaleToWidth(width).resizeTo(width, height, Position.TopCenter);
                                     log.info("scaleToWidth {} then resizeTo {}x{} position: TopCenter", width, width, height);
                                 } else if(position.equals("bottomCenter")){
-                                    img.scaleToWidth(width).resizeTo(width, height, Position.BottomCenter);
+                                    img = img.scaleToWidth(width).resizeTo(width, height, Position.BottomCenter);
                                     log.info("scaleToWidth {} then resizeTo {}x{} position: BottomCenter", width, width, height);
                                 } else {
-                                    img.scaleToWidth(width).resizeTo(width, height);
+                                    img = img.scaleToWidth(width).resizeTo(width, height);
                                     log.info("scaleToWidth {} then resizeTo {}x{} position: center", width, width, height);
                                 }
                             } else if((ratioSrc > 1 && ratioTgt < 1) || ratioSrc > ratioTgt){
                                 log.info("scaleToHeight");
                                 if(position.equals("topCenter"))
-                                    img.scaleToHeight(height).resizeTo(width, height, Position.TopCenter);
+                                    img = img.scaleToHeight(height).resizeTo(width, height, Position.TopCenter);
                                 else if(position.equals("bottomCenter"))
-                                    img.scaleToHeight(height).resizeTo(width, height, Position.BottomCenter);
-                                else img.scaleToHeight(height).resizeTo(width, height);
+                                    img = img.scaleToHeight(height).resizeTo(width, height, Position.BottomCenter);
+                                else img = img.scaleToHeight(height).resizeTo(width, height);
                             } else {
                                 log.info("no scale");
                                 if(ratioSrc < 1)
-                                    img.scaleToWidth(width).resizeTo(width, height);
-                                else img.scaleToHeight(height).resizeTo(width, height);
+                                    img = img.scaleToWidth(width).resizeTo(width, height);
+                                else img = img.scaleToHeight(height).resizeTo(width, height);
                             }
                         }
                     } else {
