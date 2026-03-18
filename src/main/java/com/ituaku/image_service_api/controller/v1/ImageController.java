@@ -193,17 +193,14 @@ public class ImageController {
                     if(proc_mode.contains("[resize]")){
                         log.info("resize mode");
                         if(width != null && height == null){
-                            img.scaleToWidth(width)
-                                .output(WebpWriter.DEFAULT, outputFile);
+                            img.scaleToWidth(width);
                             log.info("scaleToWidth {}", width);
                         } else if(width == null && height != null){
-                            img.scaleToHeight(height)
-                                .output(WebpWriter.DEFAULT, outputFile);
-                                log.info("scaleToHeight {}", height);
+                            img.scaleToHeight(height);
+                            log.info("scaleToHeight {}", height);
                         } else if(width != null && height != null){
-                            img.scaleTo(width, height)
-                                .output(WebpWriter.DEFAULT, outputFile);
-                                log.info("scaleTo {}x{}", width, height);
+                            img.scaleTo(width, height);
+                            log.info("scaleTo {}x{}", width, height);
                         }
                     } else if(proc_mode.contains("[crop]")){
                         if(width != null && height != null){
@@ -215,35 +212,36 @@ public class ImageController {
                             if((ratioSrc < 1 && ratioTgt > 1) || ratioSrc < ratioTgt){
                                 log.info("scaleToWidth");
                                 if(position.equals("topCenter")){
-                                    img.scaleToWidth(width).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
+                                    img.scaleToWidth(width).resizeTo(width, height, Position.TopCenter);
                                     log.info("scaleToWidth {} then resizeTo {}x{} position: TopCenter", width, width, height);
                                 } else if(position.equals("bottomCenter")){
-                                    img.scaleToWidth(width).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
+                                    img.scaleToWidth(width).resizeTo(width, height, Position.BottomCenter);
                                     log.info("scaleToWidth {} then resizeTo {}x{} position: BottomCenter", width, width, height);
                                 } else {
-                                    img.scaleToWidth(width).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                                    img.scaleToWidth(width).resizeTo(width, height);
                                     log.info("scaleToWidth {} then resizeTo {}x{} position: center", width, width, height);
                                 }
                             } else if((ratioSrc > 1 && ratioTgt < 1) || ratioSrc > ratioTgt){
                                 log.info("scaleToHeight");
                                 if(position.equals("topCenter"))
-                                    img.scaleToHeight(height).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
+                                    img.scaleToHeight(height).resizeTo(width, height, Position.TopCenter);
                                 else if(position.equals("bottomCenter"))
-                                    img.scaleToHeight(height).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
-                                else img.scaleToHeight(height).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                                    img.scaleToHeight(height).resizeTo(width, height, Position.BottomCenter);
+                                else img.scaleToHeight(height).resizeTo(width, height);
                             } else {
                                 log.info("no scale");
                                 if(ratioSrc < 1)
-                                    img.scaleToWidth(width).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
-                                else img.scaleToHeight(height).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                                    img.scaleToWidth(width).resizeTo(width, height);
+                                else img.scaleToHeight(height).resizeTo(width, height);
                             }
                         }
                     } else {
-                        log.info("no reize, no crop");
-                        ImmutableImage.loader()
-                            .fromFile(inputFile)
-                            .output(WebpWriter.DEFAULT, outputFile);
+                        log.info("no reize, no crop, do nothing");
                     }
+
+                    /** Write the result image */
+                    WebpWriter writer = WebpWriter.MAX_LOSSLESS_COMPRESSION;
+                    img.output(writer, outputFile);
 
                     Path filePath = Paths.get(uploadDir).resolve(webpFilename).normalize();
                     Resource resource = new UrlResource(filePath.toUri());
