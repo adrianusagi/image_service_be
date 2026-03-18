@@ -23,7 +23,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import com.sksamuel.scrimage.ImmutableImage;
+import com.sksamuel.scrimage.nio.ImmutableImageLoader;
 import com.sksamuel.scrimage.Position;
 import com.sksamuel.scrimage.webp.WebpWriter;
 import java.io.File;
@@ -152,11 +155,10 @@ public class ImageController {
 
     @PostMapping("/process")
     public ResponseEntity<Resource> processImage(@RequestBody ImageProcessRequest request) {
+
         try {
             String filename = request.getFilename();
-            log.info("request filename: {}", filename);
             File inputFile = new File(uploadDir + filename);
-            log.info("request inputfile: {}", inputFile);
             // // Define the output path with .webp extension
             String webpFilename = StringUtils.stripFilenameExtension(filename) + ".webp";
             File outputFile = new File(uploadDir + webpFilename);
@@ -176,55 +178,53 @@ public class ImageController {
                 log.info("format config: {}", config);
 
                 try {
+                    ImmutableImage img = ImmutableImage.loader().fromFile(inputFile);
+                    log.info("Successfully loaded image: {}x{}", img.width, img.height);
+                    
                     if(proc_mode.contains("[resize]")){
                         log.info("resize mode");
                         if(width != null && height == null){
-                            ImmutableImage.loader().fromFile(inputFile)
-                                .scaleToWidth(width)
+                            img.scaleToWidth(width)
                                 .output(WebpWriter.DEFAULT, outputFile);
                             log.info("scaleToWidth {}", width);
                         } else if(width == null && height != null){
-                            ImmutableImage.loader().fromFile(inputFile)
-                                .scaleToHeight(height)
+                            img.scaleToHeight(height)
                                 .output(WebpWriter.DEFAULT, outputFile);
                                 log.info("scaleToHeight {}", height);
                         } else if(width != null && height != null){
-                            ImmutableImage.loader().fromFile(inputFile)
-                                .scaleTo(width, height)
+                            img.scaleTo(width, height)
                                 .output(WebpWriter.DEFAULT, outputFile);
                                 log.info("scaleTo {}x{}", width, height);
                         }
                     } else if(proc_mode.contains("[crop]")){
                         if(width != null && height != null){
-                            ImmutableImage img = ImmutableImage.loader().fromFile(inputFile);
+                            Float ratioSrc = (float) img.width / img.height;
+                            Float ratioTgt = (float) width / height;
 
-                            if(img.width < width || img.height < height){
-                                Float scaleW = (float) width / img.width; 
-                                Float scaleH = (float) height / img.height;
-                                log.info("crop mode with scaleW: {}, scaleH: {}", scaleW, scaleH);
-                                if((scaleW > 1 && scaleH < 1) || scaleW > scaleH){
-                                    log.info("scaleToWidth");
-                                    if(position.equals("topCenter")){
-                                        img.scaleToWidth(width).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
-                                        log.info("scaleToWidth {} then resizeTo {}x{} position: TopCenter", width, width, height);
-                                    } else if(position.equals("bottomCenter")){
-                                        img.scaleToWidth(width).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
-                                        log.info("scaleToWidth {} then resizeTo {}x{} position: BottomCenter", width, width, height);
-                                    } else {
-                                        img.scaleToWidth(width).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
-                                        log.info("scaleToWidth {} then resizeTo {}x{} position: center", width, width, height);
-                                    }
-                                } else if((scaleW < 1 && scaleH > 1) || scaleW < scaleH){
-                                    log.info("scaleToHeight");
-                                    if(position.equals("topCenter"))
-                                        img.scaleToHeight(height).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
-                                    else if(position.equals("bottomCenter"))
-                                        img.scaleToHeight(height).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
-                                    else img.scaleToHeight(height).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                            log.info("ration source :{}, target:{}", ratioSrc, ratioTgt);
+    
+                            if((ratioSrc < 1 && ratioTgt > 1) || ratioSrc < ratioTgt){
+                                log.info("scaleToWidth");
+                                if(position.equals("topCenter")){
+                                    img.scaleToWidth(width).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
+                                    log.info("scaleToWidth {} then resizeTo {}x{} position: TopCenter", width, width, height);
+                                } else if(position.equals("bottomCenter")){
+                                    img.scaleToWidth(width).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
+                                    log.info("scaleToWidth {} then resizeTo {}x{} position: BottomCenter", width, width, height);
                                 } else {
-                                    log.info("no scale");
-                                    img.resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                                    img.scaleToWidth(width).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                                    log.info("scaleToWidth {} then resizeTo {}x{} position: center", width, width, height);
                                 }
+                            } else if((ratioSrc > 1 && ratioTgt < 1) || ratioSrc > ratioTgt){
+                                log.info("scaleToHeight");
+                                if(position.equals("topCenter"))
+                                    img.scaleToHeight(height).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
+                                else if(position.equals("bottomCenter"))
+                                    img.scaleToHeight(height).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
+                                else img.scaleToHeight(height).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                            } else {
+                                log.info("no scale");
+                                img.resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
                             }
                         }
                     } else {
@@ -233,41 +233,41 @@ public class ImageController {
                             .fromFile(inputFile)
                             .output(WebpWriter.DEFAULT, outputFile);
                     }
+
+                    Path filePath = Paths.get(uploadDir).resolve(webpFilename).normalize();
+                    Resource resource = new UrlResource(filePath.toUri());
+
+                    // Automatically determine if it's a webp, png, or jpg
+                    String contentType = Files.probeContentType(filePath);
+                    if (contentType == null) contentType = "image/webp"; // Fallback
+
+                    /** Delete the files after particular time */
+                    scheduler.schedule(() -> {
+                        try {
+                            // Attempt to delete the file
+                            Path delfilePath = Paths.get(uploadDir).resolve(webpFilename);
+                            
+                            boolean deleted = Files.deleteIfExists(delfilePath);
+                            
+                            if (deleted) {
+                                log.warn("File deleted successfully: {}", webpFilename);
+                            } else {
+                                log.warn("File not found, could not delete: {}", webpFilename);
+                            }
+                        } catch (IOException e) {
+                            log.error("Failed to delete file: " + webpFilename, e);
+                        }
+                    }, deleteImgAfter, TimeUnit.SECONDS);
+
+                    return ResponseEntity.ok().contentType(MediaType.parseMediaType(contentType))
+                        .header("Content-Disposition", "inline; filename=\"" + webpFilename + "\"")
+                        .body(resource);
                 } catch (IOException e) {
                     log.error("Failed to write WebP output to disk at path: {}", outputFile.getAbsolutePath());
                     log.error("Failed error: ", e);
                     // Return a 500 error or throw a custom exception here
                     return ResponseEntity.internalServerError().build();
                 }
-
-                Path filePath = Paths.get(uploadDir).resolve(webpFilename).normalize();
-                Resource resource = new UrlResource(filePath.toUri());
-
-                // Automatically determine if it's a webp, png, or jpg
-                String contentType = Files.probeContentType(filePath);
-                if (contentType == null) contentType = "image/webp"; // Fallback
-
-                /** Delete the files after particular time */
-                scheduler.schedule(() -> {
-                    try {
-                        // Attempt to delete the file
-                        Path delfilePath = Paths.get(uploadDir).resolve(webpFilename);
-                        
-                        boolean deleted = Files.deleteIfExists(delfilePath);
-                        
-                        if (deleted) {
-                            log.warn("File deleted successfully: {}", webpFilename);
-                        } else {
-                            log.warn("File not found, could not delete: {}", webpFilename);
-                        }
-                    } catch (IOException e) {
-                        log.error("Failed to delete file: " + webpFilename, e);
-                    }
-                }, deleteImgAfter, TimeUnit.SECONDS);
-
-                return ResponseEntity.ok().contentType(MediaType.parseMediaType(contentType))
-                    .header("Content-Disposition", "inline; filename=\"" + webpFilename + "\"")
-                    .body(resource);
             } catch (JacksonException e) {
                 log.info("failed to proceses image: {}", e);
                 return ResponseEntity.internalServerError().build();
