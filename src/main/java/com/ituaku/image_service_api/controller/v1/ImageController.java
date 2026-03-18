@@ -233,7 +233,9 @@ public class ImageController {
                                 else img.scaleToHeight(height).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
                             } else {
                                 log.info("no scale");
-                                img.resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                                if(ratioSrc < 1)
+                                    img.scaleToWidth(width).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                                else img.scaleToHeight(height).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
                             }
                         }
                     } else {
