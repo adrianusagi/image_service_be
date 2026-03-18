@@ -29,7 +29,6 @@ import com.sksamuel.scrimage.ImmutableImage;
 import com.sksamuel.scrimage.nio.ImmutableImageLoader;
 import com.sksamuel.scrimage.Position;
 import com.sksamuel.scrimage.webp.WebpWriter;
-import java.io.File;
 
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.core.JacksonException;
@@ -53,6 +52,7 @@ import lombok.NoArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -158,7 +158,16 @@ public class ImageController {
 
         try {
             String filename = request.getFilename();
+            log.info("filename: {}", filename);
+
             File inputFile = new File(uploadDir + filename);
+
+            // Check if it's HEIC
+            if (filename.endsWith(".heic") || filename.endsWith(".heif")) {
+                /** If heic image */
+                inputFile = handleHeicConversion(inputFile);
+            }
+
             // // Define the output path with .webp extension
             String webpFilename = StringUtils.stripFilenameExtension(filename) + ".webp";
             File outputFile = new File(uploadDir + webpFilename);
@@ -246,8 +255,11 @@ public class ImageController {
                         try {
                             // Attempt to delete the file
                             Path delfilePath = Paths.get(uploadDir).resolve(webpFilename);
-                            
                             boolean deleted = Files.deleteIfExists(delfilePath);
+
+                            String heicTempFilename = StringUtils.stripFilenameExtension(filename) + "-heic.jpg";
+                            Path deleteInputFilePath = Paths.get(uploadDir).resolve(heicTempFilename);
+                            boolean deleteInputFile = Files.deleteIfExists(deleteInputFilePath);
                             
                             if (deleted) {
                                 log.warn("File deleted successfully: {}", webpFilename);
@@ -276,6 +288,39 @@ public class ImageController {
             log.info("failed to proceses image: {}", e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    public File handleHeicConversion(File inputFile) throws Exception {
+        log.info("Pre precessing HEIC file format");
+        File outputFile = new File(inputFile.getParent(), 
+                               StringUtils.stripFilenameExtension(inputFile.getName()) + "-heic.jpg");
+
+        log.info("inputFile: {}", inputFile.getAbsolutePath());
+        log.info("outputFile: {}", outputFile.getAbsolutePath());
+        // Using ImageMagick is safer for existing files as it handles metadata better
+        ProcessBuilder pb = new ProcessBuilder(
+            "convert", 
+            inputFile.getAbsolutePath(), 
+            outputFile.getAbsolutePath()
+        );
+
+        // Redirect error stream so we can see why it fails in Docker logs
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+
+        // If a 1920px+ HEIC is corrupted, we don't want the thread to hang forever
+        boolean finished = process.waitFor(30, TimeUnit.SECONDS);
+
+        if (!finished) {
+            process.destroyForcibly();
+            throw new RuntimeException("HEIC conversion timed out for: " + inputFile.getName());
+        }
+
+        if (process.exitValue() != 0) {
+            throw new RuntimeException("HEIC conversion failed. Exit code: " + process.exitValue());
+        }
+
+        return outputFile;
     }
 }
 
