@@ -174,59 +174,68 @@ public class ImageController {
                 Integer height = config.getHeight();
                 String position = config.getPosition();
                 log.info("format config: {}", config);
-                if(proc_mode.contains("[resize]")){
-                    if(width != null && height == null){
-                        ImmutableImage.loader().fromFile(inputFile)
-                            .scaleToWidth(width)
-                            .output(WebpWriter.DEFAULT, outputFile);
-                        log.info("scaleToWidth {}", width);
-                    } else if(width == null && height != null){
-                        ImmutableImage.loader().fromFile(inputFile)
-                            .scaleToHeight(height)
-                            .output(WebpWriter.DEFAULT, outputFile);
-                            log.info("scaleToHeight {}", height);
-                    } else if(width != null && height != null){
-                        ImmutableImage.loader().fromFile(inputFile)
-                            .scaleTo(width, height)
-                            .output(WebpWriter.DEFAULT, outputFile);
-                            log.info("scaleTo {}x{}", width, height);
-                    }
-                } else if(proc_mode.contains("[crop]")){
-                    if(width != null && height != null){
-                        ImmutableImage img = ImmutableImage.loader().fromFile(inputFile);
 
-                        if(img.width < width || img.height < height){
-                            Float scaleW = (float) width / img.width; 
-                            Float scaleH = (float) height / img.height;
-                            
-                            if((scaleW > 1 && scaleH < 1) || scaleW > scaleH){
-                                log.info("scaleToWidth");
-                                if(position.equals("topCenter")){
-                                    img.scaleToWidth(width).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
-                                    log.info("scaleToWidth {} then resizeTo {}x{} position: TopCenter", width, width, height);
-                                } else if(position.equals("bottomCenter")){
-                                    img.scaleToWidth(width).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
-                                    log.info("scaleToWidth {} then resizeTo {}x{} position: BottomCenter", width, width, height);
+                try {
+                    if(proc_mode.contains("[resize]")){
+                        if(width != null && height == null){
+                            ImmutableImage.loader().fromFile(inputFile)
+                                .scaleToWidth(width)
+                                .output(WebpWriter.DEFAULT, outputFile);
+                            log.info("scaleToWidth {}", width);
+                        } else if(width == null && height != null){
+                            ImmutableImage.loader().fromFile(inputFile)
+                                .scaleToHeight(height)
+                                .output(WebpWriter.DEFAULT, outputFile);
+                                log.info("scaleToHeight {}", height);
+                        } else if(width != null && height != null){
+                            ImmutableImage.loader().fromFile(inputFile)
+                                .scaleTo(width, height)
+                                .output(WebpWriter.DEFAULT, outputFile);
+                                log.info("scaleTo {}x{}", width, height);
+                        }
+                    } else if(proc_mode.contains("[crop]")){
+                        if(width != null && height != null){
+                            ImmutableImage img = ImmutableImage.loader().fromFile(inputFile);
+
+                            if(img.width < width || img.height < height){
+                                Float scaleW = (float) width / img.width; 
+                                Float scaleH = (float) height / img.height;
+                                
+                                if((scaleW > 1 && scaleH < 1) || scaleW > scaleH){
+                                    log.info("scaleToWidth");
+                                    if(position.equals("topCenter")){
+                                        img.scaleToWidth(width).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
+                                        log.info("scaleToWidth {} then resizeTo {}x{} position: TopCenter", width, width, height);
+                                    } else if(position.equals("bottomCenter")){
+                                        img.scaleToWidth(width).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
+                                        log.info("scaleToWidth {} then resizeTo {}x{} position: BottomCenter", width, width, height);
+                                    } else {
+                                        img.scaleToWidth(width).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
+                                        log.info("scaleToWidth {} then resizeTo {}x{} position: center", width, width, height);
+                                    }
+                                } else if((scaleW < 1 && scaleH > 1) || scaleW < scaleH){
+                                    log.info("scaleToHeight");
+                                    if(position.equals("topCenter"))
+                                        img.scaleToHeight(height).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
+                                    else if(position.equals("bottomCenter"))
+                                        img.scaleToHeight(height).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
+                                    else img.scaleToHeight(height).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
                                 } else {
-                                    img.scaleToWidth(width).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
-                                    log.info("scaleToWidth {} then resizeTo {}x{} position: center", width, width, height);
+                                    log.info("no scale");
+                                    img.resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
                                 }
-                            } else if((scaleW < 1 && scaleH > 1) || scaleW < scaleH){
-                                log.info("scaleToHeight");
-                                if(position.equals("topCenter"))
-                                    img.scaleToHeight(height).resizeTo(width, height, Position.TopCenter).output(WebpWriter.DEFAULT, outputFile);
-                                else if(position.equals("bottomCenter"))
-                                    img.scaleToHeight(height).resizeTo(width, height, Position.BottomCenter).output(WebpWriter.DEFAULT, outputFile);
-                                else img.scaleToHeight(height).resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
-                            } else {
-                                img.resizeTo(width, height).output(WebpWriter.DEFAULT, outputFile);
                             }
                         }
+                    } else {
+                        log.info("no reize, no crop");
+                        ImmutableImage.loader()
+                            .fromFile(inputFile)
+                            .output(WebpWriter.DEFAULT, outputFile);
                     }
-                } else {
-                    ImmutableImage.loader()
-                        .fromFile(inputFile)
-                        .output(WebpWriter.DEFAULT, outputFile);
+                } catch (IOException e) {
+                    log.error("Failed to write WebP output to disk at path: {}", outputFile.getAbsolutePath(), e);
+                    // Return a 500 error or throw a custom exception here
+                    return ResponseEntity.internalServerError().build();
                 }
 
                 Path filePath = Paths.get(uploadDir).resolve(webpFilename).normalize();
