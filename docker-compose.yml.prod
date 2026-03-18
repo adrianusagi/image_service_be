@@ -9,7 +9,7 @@ services:
       - .env
     build: .
     container_name: "image-service-be"
-    image: maven:3-eclipse-temurin-25
+    image: maven:3.9-eclipse-temurin-17
     volumes:
       # Dedicated volume for uploads to ensure persistence 
       # and clear separation from source code
