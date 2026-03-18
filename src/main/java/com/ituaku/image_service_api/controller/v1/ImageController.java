@@ -163,7 +163,7 @@ public class ImageController {
             File inputFile = new File(uploadDir + filename);
 
             // Check if it's HEIC
-            if (filename.endsWith(".heic") || filename.endsWith(".heif")) {
+            if (filename.toLowerCase().endsWith(".heic") || filename.toLowerCase().endsWith(".heif")) {
                 /** If heic image */
                 inputFile = handleHeicConversion(inputFile);
             }
