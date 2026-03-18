@@ -177,6 +177,7 @@ public class ImageController {
 
                 try {
                     if(proc_mode.contains("[resize]")){
+                        log.info("resize mode");
                         if(width != null && height == null){
                             ImmutableImage.loader().fromFile(inputFile)
                                 .scaleToWidth(width)
@@ -200,7 +201,7 @@ public class ImageController {
                             if(img.width < width || img.height < height){
                                 Float scaleW = (float) width / img.width; 
                                 Float scaleH = (float) height / img.height;
-                                
+                                log.info("crop mode with scaleW: {}, scaleH: {}", scaleW, scaleH);
                                 if((scaleW > 1 && scaleH < 1) || scaleW > scaleH){
                                     log.info("scaleToWidth");
                                     if(position.equals("topCenter")){
